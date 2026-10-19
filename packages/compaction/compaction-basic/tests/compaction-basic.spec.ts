@@ -1460,6 +1460,19 @@ describe('default one-shot summarizer', () => {
     expect(instruction?.type === 'text' ? instruction.text : '').toContain('## Primary Request and Intent')
   })
 
+  it('requires verbatim preservation of paths, numeric values, and proper nouns in the compaction instruction', async () => {
+    const { adapter, compact } = await summarizerHarness([{ type: 'text', text: 'summary' }])
+    await compact.runSummarize({
+      messages: [createUserMessage({ content: [{ type: 'text', text: 'earlier turn' }], source: { kind: 'test' } })],
+    }, agent(conversation(1), MODEL))
+    const instruction = adapter.lastOptions?.messages.at(-1)?.content[0]
+    const text = instruction?.type === 'text' ? instruction.text : ''
+    expect(text).toContain('preserved verbatim, never omitted, rewritten, or paraphrased')
+    expect(text).toContain('all file paths and filenames (including extensions)')
+    expect(text).toContain('all specific numeric values (numbers, IDs, dates, token counts)')
+    expect(text).toContain('all proper nouns (script names, function names, command names, key names)')
+  })
+
   it('replays the conversation prefix and appends the instruction as the final message', async () => {
     const { adapter, compact } = await summarizerHarness([{ type: 'text', text: 'summary' }])
     const tools = [{ name: 'do_thing', description: 'd', parameters: { type: 'object' } }]
