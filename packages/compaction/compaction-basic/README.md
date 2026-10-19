@@ -222,6 +222,7 @@ Rules:
 - Do NOT mention this summarization request or that the context was compacted.
 - Output only the checkpoint text: do not call any tool or take any other action.
 - If the conversation already contains a <compacted-summary> block, it is a PRIOR checkpoint. Do not copy it forward verbatim: preserve still-true facts, drop stale ones, and merge newer information into a single consolidated summary under the same structure.
+- The following information must be preserved verbatim, never omitted, rewritten, or paraphrased: all file paths and filenames (including extensions), all specific numeric values (numbers, IDs, dates, token counts), all proper nouns (script names, function names, command names, key names). Other narrative content may be compressed. Every such item must appear verbatim in the output. Values superseded later in the conversation (replaced versions, renamed paths, corrected figures) follow the prior-checkpoint rule above: drop or replace them rather than carrying them forward.
 ```
 
 #### Token effect
