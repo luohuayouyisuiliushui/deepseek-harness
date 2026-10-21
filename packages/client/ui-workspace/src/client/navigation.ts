@@ -407,14 +407,48 @@ class UiWorkspaceService extends Service implements UiWorkspace {
 
   private watchNavigation(): () => void {
     let initial: 'waiting' | 'connecting' | 'done' = 'waiting'
+    // The persisted selection restores before the Host lists arrive, when it
+    // names a plain Session. A subagent address needs the catalog to resolve,
+    // so it waits for the lists the way it always did. A plain Session id
+    // restores provisionally, because the lists can still correct that guess:
+    // reclaiming a blank Session needs the catalog, and a vanished Session
+    // needs a fresh choice.
+    const saved = this.selection.getSnapshot()
+    const listsReady = this.workspaces.list.getSnapshot().phase === 'ready'
+      && this.sessions.list.getSnapshot().phase === 'ready'
+    let provisional: SessionId | undefined
+    if (!listsReady && saved.subagentAddress === undefined && saved.sessionId !== undefined) {
+      provisional = saved.sessionId
+      try {
+        this.replaceMain(saved.sessionId, this.lifetime.signal, 'preserve')
+        initial = 'done'
+      } catch (reason: unknown) {
+        provisional = undefined
+        console.warn('initial Session restoration failed:', reason)
+      }
+    }
     const reconcile = (): void => {
       if (this.lifetime.signal.aborted) return
       if (this.clearArchivedCurrent()) return
-      if (initial !== 'waiting') return
+      if (initial !== 'waiting' && provisional === undefined) return
       const workspace = this.workspaces.list.getSnapshot()
       const sessions = this.sessions.list.getSnapshot()
       if (workspace.phase !== 'ready' || sessions.phase !== 'ready') return
-      if (this.mainReference !== undefined) {
+      if (provisional !== undefined) {
+        // A later navigation supersedes the provisional restore.
+        if (this.selection.getSnapshot().sessionId !== provisional) {
+          provisional = undefined
+          initial = 'done'
+          return
+        }
+        // The lists now say whether that guess needs the catalog to settle.
+        if (!this.needsCatalogRestore(provisional, workspace, sessions)) {
+          provisional = undefined
+          initial = 'done'
+          return
+        }
+        provisional = undefined
+      } else if (this.mainReference !== undefined) {
         initial = 'done'
         return
       }
@@ -437,6 +471,24 @@ class UiWorkspaceService extends Service implements UiWorkspace {
       disposeSessions()
       disposeWorkspaces()
     }
+  }
+
+  /**
+   * Whether the provisionally restored Session still needs the Host catalog.
+   * @param sessionId - the provisionally restored Session.
+   * @param workspaces - the ready Workspace snapshot.
+   * @param sessions - the ready Session list snapshot.
+   * @returns true when the restored Session is blank and reclaimable, or is gone.
+   */
+  private needsCatalogRestore(
+    sessionId: SessionId,
+    workspaces: WorkspaceSnapshot,
+    sessions: SessionListState,
+  ): boolean {
+    const summary = sessions.byId[sessionId]
+    if (summary === undefined) return true
+    const workspace = workspaces.items.find(item => item.sessionIds.includes(summary.id))
+    return summary.blank && workspace !== undefined
   }
 
   private async restoreSelection(workspaces: WorkspaceSnapshot, sessions: SessionListState): Promise<void> {

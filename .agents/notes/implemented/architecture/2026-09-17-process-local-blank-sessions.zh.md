@@ -10,7 +10,7 @@ Status: implemented
 
 ## Decision
 
-Session 列表包含持久化空白会话。启动恢复选择已保存的空白会话；普通 Workspace 导航按列表顺序选择第一个符合条件且未归档的成员。显式 ID 的 `session.create` 指明该 Session；Host 恢复它并在打开历史前取得写锁，写锁被其他写者持有时改为新建 Session（[复用与 preset 规则](../bug-fix/2026-09-29-reused-blank-runs-requested-preset.zh.md)）。其他错误返回调用方。同一 Client 中的 Workspace 连接仅在与该 Workspace 最近一次进行中的连接请求相同 preset 时与之合并。后续导航会取消尚未完成的启动选择。
+Session 列表包含持久化空白会话。启动恢复在 Host 列表到达前恢复已持久化的选择：普通 Session id 先临时恢复、Host 列表到达后再纠正——此时空白会话按下文通过 Session 列表接管，已经消失的 Session 则换成一个新选择；subagent 地址则要等 Host 列表到达，因为需要 Session 列表来解析它。启动恢复在接管时选择已保存的空白会话；普通 Workspace 导航按列表顺序选择第一个符合条件且未归档的成员。显式 ID 的 `session.create` 指明该 Session；Host 恢复它并在打开历史前取得写锁，写锁被其他写者持有时改为新建 Session（[复用与 preset 规则](../bug-fix/2026-09-29-reused-blank-runs-requested-preset.zh.md)）。其他错误返回调用方。同一 Client 中的 Workspace 连接仅在与该 Workspace 最近一次进行中的连接请求相同 preset 时与之合并。后续导航会取消尚未完成的启动选择。
 
 Agent 在整个生命周期内持有取得的句柄。检查占用后释放探测锁，会在恢复前留下竞态。持久化数据与 Remote schema 均不引入 PID 或进程身份。
 
