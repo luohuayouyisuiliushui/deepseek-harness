@@ -413,16 +413,18 @@ describe.skipIf(MODE === 'record')('web e2e: details panel follows the current S
       await expect.poll(() => columns(page), { timeout: 5_000 }).toEqual([280, 400, 344])
       await dragSidebar(page, 420)
       await expect.poll(() => columns(page)).toEqual([420, 604, 0])
-      expect(await column.locator('[data-sidebar-right-open]').count()).toBe(0)
+      // The frame cannot fit the right column: the panel keeps its state and
+      // the frame reserves no track for it.
+      expect(await column.locator('[data-sidebar-right-open]').count()).toBe(1)
+      expect(await column.locator('[data-sidebar-right-drawable]').count()).toBe(0)
       expect(await paneSnapshot(page)).toEqual(retainedA)
-      await checkpoint('A capacity-closed: wide left preference protected')
+      await checkpoint('A capacity-squeezed: wide left preference protected')
       await page.setViewportSize(viewport)
-      await expect.poll(() => columns(page)).toEqual([420, viewport.width - 420, 0])
-      expect(await column.locator('[data-sidebar-right-open]').count()).toBe(0)
-      await checkpoint('A widened: remains closed')
-
-      await page.locator('[data-sidebar-right-expand]').click()
+      // The track comes back with the room; the panel was never closed.
       await expect.poll(() => columns(page)).toEqual([420, viewport.width - 420 - normalWidth, normalWidth])
+      expect(await column.locator('[data-sidebar-right-open]').count()).toBe(1)
+      expect(await column.locator('[data-sidebar-right-drawable]').count()).toBe(1)
+      await checkpoint('A widened: track restored')
       await page.setViewportSize({ width: 767, height: viewport.height })
       await expect.poll(() => panel.boundingBox()).toEqual({ x: 0, y: 0, width: 767, height: viewport.height })
       await expect.poll(() => columns(page)).toEqual([56, 711, 0])

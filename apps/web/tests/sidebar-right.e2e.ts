@@ -644,7 +644,7 @@ describe('web e2e: shipped right Sidebar', () => {
       expect(tripwire.warnings).toEqual([])
     })
 
-    it('keeps a capacity-closed panel closed after widening and uses fullscreen on a narrow viewport', async () => {
+    it('keeps an open panel open when the frame cannot fit it, and a closed panel closed after widening', async () => {
       const viewport = page.viewportSize()
       if (viewport === null) throw new Error('expected a fixed viewport')
       const frame = page.locator('[class*="frame"]').first()
@@ -652,17 +652,22 @@ describe('web e2e: shipped right Sidebar', () => {
       const sidebar = page.locator('[class*="sidebarCol"]').first()
       const panel = column.locator('[data-sidebar-right-panel]')
       try {
+        await ensureExpanded(page, column)
         await page.setViewportSize({ width: 1024, height: viewport.height })
         const leftGrip = frame.locator('[data-side="sidebar"]')
         const grip = await centre(leftGrip)
         await dragElement(page, leftGrip, { x: 420, y: grip.y })
         await expect.poll(async () => await width(sidebar)).toBe(420)
-        await expect.poll(async () => await column.locator('[data-sidebar-right-open]').count()).toBe(0)
+        // The frame cannot fit the right column. The panel keeps its state and
+        // the frame stops reserving a track for it.
+        await expect.poll(async () => await column.locator('[data-sidebar-right-open]').count()).toBe(1)
+        await expect.poll(async () => await column.locator('[data-sidebar-right-drawable]').count()).toBe(0)
+        await expect.poll(async () => await frame.locator('[data-side="rightbar"]').count()).toBe(0)
         await page.setViewportSize(viewport)
         await expect.poll(async () => await width(sidebar)).toBe(420)
-        expect(await column.locator('[data-sidebar-right-open]').count()).toBe(0)
-        await expandOf(page).click()
-        await expect.poll(async () => await column.locator('[data-sidebar-right-open]').count()).toBe(1)
+        // The track comes back with the room; the panel was never closed.
+        await expect.poll(async () => await frame.locator('[data-side="rightbar"]').count()).toBe(1)
+        expect(await column.locator('[data-sidebar-right-open]').count()).toBe(1)
 
         await page.setViewportSize({ width: 767, height: viewport.height })
         await expect.poll(async () => await panel.getAttribute('data-sidebar-right-panel')).toBe('fullscreen')
@@ -673,6 +678,7 @@ describe('web e2e: shipped right Sidebar', () => {
         await expect.poll(async () => await column.locator('[data-sidebar-right-open]').count()).toBe(0)
         await page.setViewportSize(viewport)
         await expect.poll(async () => await width(sidebar)).toBe(420)
+        // A panel the user closed stays closed when the frame widens.
         expect(await column.locator('[data-sidebar-right-open]').count()).toBe(0)
       } finally {
         await page.setViewportSize(viewport)

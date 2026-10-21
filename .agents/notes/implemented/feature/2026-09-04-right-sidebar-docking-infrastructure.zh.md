@@ -33,7 +33,7 @@ Agent 产出的文件是最尖锐的案例。产出文件 chip 或 `read` 行的
 
 ### 框架的右列
 
-[响应式 Sidebar 与标签信息](../../../../packages/client/ui-sidebar-right/README.zh.md)取代本记录中的无让步布局、覆盖模式与产品窗格上限。`ui-layout` 仍拥有三列几何与像素宽度偏好，Sidebar 占位项通过 `ctx.layout.openRightbar(track, fullscreen)` 和 `closeRightbar()` 报告呈现方式，框架不注入 Sidebar 包。具体宽度规则见 [ui-layout](../../../../packages/client/ui-layout/README.zh.md)。
+[响应式 Sidebar 与标签信息](../../../../packages/client/ui-sidebar-right/README.zh.md)取代本记录中的无让步布局、覆盖模式与产品窗格上限。`ui-layout` 仍拥有三列几何与像素宽度偏好，Sidebar 占位项通过 `ctx.layout.openRightbar(track, fullscreen)` 和 `closeRightbar()` 报告呈现方式，框架不注入 Sidebar 包。放不下该列的框架中，占位项保持面板展开且不上报轨道；框架变宽后轨道恢复。具体宽度规则见 [ui-layout](../../../../packages/client/ui-layout/README.zh.md)。
 
 右栏在普通与全屏模式下使用同一棵已挂载内容树；隐藏保留已保活的标签状态，全屏覆盖视口并保留底层列占位。`DockLayout` 在同一棵树中渲染稳定 Grid cell 与 fixed 定位的浮动 frame，前台浮窗不随右栏关闭。产品限制为两个水平窗格与 20–80% 分割比例，通用引擎保留自己的默认值。
 

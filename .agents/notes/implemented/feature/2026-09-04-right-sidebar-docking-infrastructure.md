@@ -33,7 +33,7 @@ Components render a snapshot and report settled intents, one per gesture: a drag
 
 ### The frame's right column
 
-[Responsive Sidebar and tab information](../../../../packages/client/ui-sidebar-right/README.md) supersedes this note's no-concession layout, overlay presentation and product pane limit. `ui-layout` still owns three-column geometry and pixel width preferences; the Sidebar occupant reports presentation through `ctx.layout.openRightbar(track, fullscreen)` and `closeRightbar()`, without the frame injecting the Sidebar package. Exact width rules belong to [ui-layout](../../../../packages/client/ui-layout/README.md).
+[Responsive Sidebar and tab information](../../../../packages/client/ui-sidebar-right/README.md) supersedes this note's no-concession layout, overlay presentation and product pane limit. `ui-layout` still owns three-column geometry and pixel width preferences; the Sidebar occupant reports presentation through `ctx.layout.openRightbar(track, fullscreen)` and `closeRightbar()`, without the frame injecting the Sidebar package. The occupant keeps the panel expanded in a frame that cannot fit the column and reports no track there; a widened frame restores it. Exact width rules belong to [ui-layout](../../../../packages/client/ui-layout/README.md).
 
 The right Sidebar uses one mounted content tree in normal and fullscreen modes; hiding preserves retained tab state, and fullscreen covers the viewport while retaining underlying column reservation. `DockLayout` renders stable Grid cells with fixed-position floating frames in the same tree; foreground floats remain open when the Sidebar closes. The product limits docking to two horizontal panes and a 20–80% divider; the generic engine keeps its own defaults.
 
