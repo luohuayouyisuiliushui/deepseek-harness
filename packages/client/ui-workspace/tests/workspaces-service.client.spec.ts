@@ -1435,6 +1435,115 @@ describe('UiWorkspaceService', () => {
     expect(b.sessions.retained[0]!.reference.sessionId).toBe(sid('saved'))
   })
 
+  it('restores a persisted Session before the Host lists arrive', () => {
+    persistSelection({ sessionId: sid('saved') })
+    const b = bench()
+
+    expect(b.sessions.retain).toHaveBeenCalledExactlyOnceWith(sid('saved'), { source: 'mainView' })
+  })
+
+  it('waits for the Host lists before restoring a persisted subagent address', async () => {
+    const address: SubagentAddress = {
+      parentSessionId: sid('parent'),
+      childSessionId: sid('child'),
+      mode: 'continuable',
+    }
+    persistSelection({ sessionId: address.childSessionId, subagentAddress: address })
+    const b = bench()
+
+    // A subagent address needs the catalog to resolve, so it does not restore
+    // before the Host lists arrive.
+    expect(b.sessions.retain).not.toHaveBeenCalled()
+    b.sessions.list.set(sessionState([summary('child')]))
+    b.workspaces.list.set(workspaceState())
+
+    await vi.waitFor(() => {
+      expect(b.sessions.retain).toHaveBeenCalledExactlyOnceWith(address, { source: 'mainView' })
+    })
+  })
+
+  it('keeps a provisionally restored Session the Host lists confirm', () => {
+    persistSelection({ sessionId: sid('saved') })
+    const b = bench()
+    expect(b.sessions.retain).toHaveBeenCalledExactlyOnceWith(sid('saved'), { source: 'mainView' })
+
+    b.sessions.list.set(sessionState([summary('saved')]))
+    b.workspaces.list.set(workspaceState([workspace('a', [sid('saved')])]))
+
+    expect(b.sessions.create).not.toHaveBeenCalled()
+    expect(b.sessions.retain).toHaveBeenCalledExactlyOnceWith(sid('saved'), { source: 'mainView' })
+  })
+
+  it('leaves a provisionally restored blank that no Workspace claims', () => {
+    persistSelection({ sessionId: sid('saved') })
+    const b = bench()
+
+    b.sessions.list.set(sessionState([summary('saved', { blank: true, cwd: '/w/a' })]))
+    b.workspaces.list.set(workspaceState())
+
+    expect(b.sessions.create).not.toHaveBeenCalled()
+    expect(b.sessions.retain).toHaveBeenCalledExactlyOnceWith(sid('saved'), { source: 'mainView' })
+  })
+
+  it('reclaims a provisionally restored blank through the Host catalog', async () => {
+    persistSelection({ sessionId: sid('saved') })
+    const b = bench()
+    expect(b.sessions.retain).toHaveBeenCalledExactlyOnceWith(sid('saved'), { source: 'mainView' })
+
+    b.sessions.list.set(sessionState([summary('saved', { blank: true, cwd: '/w/a' })]))
+    b.workspaces.list.set(workspaceState([workspace('a', [sid('saved')])]))
+
+    await vi.waitFor(() => {
+      expect(b.sessions.create.mock.calls).toEqual([[{ workspaceId: wid('a'), sessionId: sid('saved') }]])
+    })
+  })
+
+  it('replaces a provisionally restored Session that has vanished', async () => {
+    persistSelection({ sessionId: sid('gone') })
+    const b = bench()
+    expect(b.sessions.retain).toHaveBeenCalledExactlyOnceWith(sid('gone'), { source: 'mainView' })
+
+    b.sessions.list.set(sessionState([summary('other')]))
+    b.workspaces.list.set(workspaceState([workspace('a', [sid('other')])]))
+
+    await vi.waitFor(() => {
+      expect(b.sessions.retain).toHaveBeenCalledTimes(2)
+    })
+    expect(b.sessions.retain.mock.calls.map(([target]) => target)).toEqual([sid('gone'), sid('created-a')])
+  })
+
+  it('lets a later navigation supersede the provisional restore', async () => {
+    persistSelection({ sessionId: sid('saved') })
+    const b = bench()
+    expect(b.sessions.retain).toHaveBeenCalledExactlyOnceWith(sid('saved'), { source: 'mainView' })
+
+    b.uiWorkspace.openSession(sid('chosen'))
+    b.sessions.list.set(sessionState([summary('saved', { blank: true, cwd: '/w/a' })]))
+    b.workspaces.list.set(workspaceState([workspace('a', [sid('saved')])]))
+
+    await vi.waitFor(() => {
+      expect(b.sessions.retain).toHaveBeenCalledTimes(2)
+    })
+    expect(b.sessions.create).not.toHaveBeenCalled()
+  })
+
+  it('falls back to the reconcile path when the provisional restore fails', async () => {
+    const failure = new Error('restore failed')
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    persistSelection({ sessionId: sid('saved') })
+    const b = bench({
+      configureSessions: (face) => { face.retain.mockImplementationOnce(() => { throw failure }) },
+    })
+
+    expect(warning).toHaveBeenCalledWith('initial Session restoration failed:', failure)
+    b.sessions.list.set(sessionState([summary('saved')]))
+    b.workspaces.list.set(workspaceState([workspace('a', [sid('saved')])]))
+
+    await vi.waitFor(() => {
+      expect(b.sessions.retain).toHaveBeenCalledWith(sid('saved'), { source: 'mainView' })
+    })
+  })
+
   it('clears a selected Session when an external archive snapshot arrives', () => {
     const b = bench()
     b.uiWorkspace.openSession(sid('current'))
