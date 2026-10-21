@@ -501,7 +501,7 @@ class JsonlSessionPersistence extends SessionPersistence {
       return {
         ...metadata,
         revision: selected.sourceVersion < SESSION_FORMAT_VERSION
-          ? SessionPersistenceRevision(`${fileRevision(identity)}:${await this.historicalCorpusRevision(options?.signal)}`)
+          ? SessionPersistenceRevision(`${fileRevision(identity)}:${await this.corpusRevision(options?.signal)}`)
           : fileRevision(identity),
         sizeBytes: Number(identity.size),
       }
@@ -526,9 +526,7 @@ class JsonlSessionPersistence extends SessionPersistence {
     // append lands mid-scan is then still in this snapshot (its artifact may
     // predate the scan), so create-to-list visibility never has a hole.
     const pending = [...this.tracker.pendingEntries()]
-    const artifacts = await this.listArtifacts(signal)
-    const corpusRevision = artifacts.some(artifact => artifact.sourceVersion < SESSION_FORMAT_VERSION)
-      ? await this.historicalCorpusRevision(signal) : undefined
+    const { artifacts, generations } = await this.listArtifacts(signal)
     const statted = settledValues(await settleLimited(this.listLimit, artifacts, async (artifact) => {
       signal?.throwIfAborted()
       try {
@@ -541,6 +539,16 @@ class JsonlSessionPersistence extends SessionPersistence {
         return undefined
       }
     }))
+    // The corpus fingerprint covers the selected generations this listing already
+    // resolved, including members whose header did not parse. The identities
+    // collected above answer for the readable ones; the rest are read here.
+    const identities = new Map<string, JsonlPhysicalIdentity>()
+    for (const entry of statted) {
+      if (entry === undefined) continue
+      identities.set(entry.artifact.path, entry.identity)
+    }
+    const corpusRevision = artifacts.some(artifact => artifact.sourceVersion < SESSION_FORMAT_VERSION)
+      ? await this.historicalCorpusRevision(generations, identities, signal) : undefined
     for (const entry of statted) {
       if (entry === undefined) continue
       const { artifact, identity } = entry
@@ -682,7 +690,7 @@ class JsonlSessionPersistence extends SessionPersistence {
     let prepared: Awaited<ReturnType<typeof prepareJsonlMigration>>
     let validateRelatedSources: () => Promise<void>
     try {
-      const children = async () => (await this.listArtifacts(signal))
+      const children = async () => (await this.listArtifacts(signal)).artifacts
         .filter(source => source.header.origin === 'subagent' && source.header.parentSession === id)
       const sources = await children()
       const related = await prepareCatalogFacts(id, sources, this.compression, signal)
@@ -1115,10 +1123,23 @@ class JsonlSessionPersistence extends SessionPersistence {
     return results
   }
 
-  /** Historical logical events depend on the corpus, including members with unreadable headers. */
-  private async historicalCorpusRevision(signal?: AbortSignal): Promise<string> {
-    const paths = (await this.listGenerations(signal)).map(source => source.sourcePath).sort()
-    const entries = settledValues(await settleLimited(this.listLimit, paths, async (path) => {
+  /**
+   * Historical logical events depend on the corpus, including members with unreadable headers.
+   * @param generations - the selected generations the caller already resolved.
+   * @param identities - the physical identities the caller already collected for those paths.
+   * @param signal - optional cancellation for the remaining reads.
+   * @returns the corpus fingerprint.
+   */
+  private async historicalCorpusRevision(
+    generations: readonly ResolvedJsonlGeneration[],
+    identities: ReadonlyMap<string, JsonlPhysicalIdentity>,
+    signal?: AbortSignal,
+  ): Promise<string> {
+    const paths = generations.map(source => source.sourcePath).sort()
+    const revisions = new Map<string, string>()
+    for (const [path, identity] of identities) revisions.set(path, fileRevision(identity))
+    const unread = paths.filter(path => !revisions.has(path))
+    const entries = settledValues(await settleLimited(this.listLimit, unread, async (path) => {
       signal?.throwIfAborted()
       try {
         return { path, revision: fileRevision(await stat(path, { bigint: true })) }
@@ -1127,15 +1148,30 @@ class JsonlSessionPersistence extends SessionPersistence {
         return { path, revision: 'missing' }
       }
     }))
+    for (const entry of entries) revisions.set(entry.path, entry.revision)
     const hash = createHash('sha256')
-    for (const { path, revision } of entries) hash.update(JSON.stringify([path, revision]))
+    for (const path of paths) {
+      hash.update(JSON.stringify([path, revisions.get(path)]))
+    }
     signal?.throwIfAborted()
     return hash.digest('hex')
   }
 
+  /**
+   * The corpus fingerprint for a caller that resolved no generations itself.
+   * @param signal - optional cancellation for the listing reads.
+   * @returns the corpus fingerprint.
+   */
+  private async corpusRevision(signal?: AbortSignal): Promise<string> {
+    return this.historicalCorpusRevision(await this.listGenerations(signal), new Map(), signal)
+  }
+
   private async listArtifacts(
     signal?: AbortSignal,
-  ): Promise<Array<GenerationHeader & { path: string; sourceVersion: number }>> {
+  ): Promise<{
+    readonly artifacts: Array<GenerationHeader & { path: string; sourceVersion: number }>
+    readonly generations: readonly ResolvedJsonlGeneration[]
+  }> {
     signal?.throwIfAborted()
     await this.ensureRootEncoding()
     signal?.throwIfAborted()
@@ -1164,7 +1200,7 @@ class JsonlSessionPersistence extends SessionPersistence {
       artifacts.push({ ...metadata, path: selected.sourcePath, sourceVersion: selected.sourceVersion })
     }
     signal?.throwIfAborted()
-    return artifacts
+    return { artifacts, generations }
   }
 
   /** Read and translate one selected generation header without inspecting its body. */

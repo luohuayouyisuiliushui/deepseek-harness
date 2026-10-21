@@ -2030,17 +2030,23 @@ describe('JsonlSessionPersistence: durability and crash semantics', () => {
     expect(aggregate?.errors).toEqual([failure])
   })
 
+  /** The listing discovery result: the readable artifacts and the selected generations. */
+  type DiscoveredArtifacts = {
+    artifacts: Array<{ header: SessionHeader; path: string }>
+    generations: unknown[]
+  }
+
   it('omits a listed artifact removed after discovery', async () => {
     const m = meta('vanishing-snapshot')
     await writeLog(ctx.sessionPersistence, m, oneTurnLog())
     const persistence = ctx.sessionPersistence as unknown as {
-      listArtifacts(): Promise<Array<{ header: SessionHeader; path: string }>>
+      listArtifacts(): Promise<DiscoveredArtifacts>
     }
     const listArtifacts = persistence.listArtifacts.bind(persistence)
     const discovery = vi.spyOn(persistence, 'listArtifacts').mockImplementation(async () => {
-      const artifacts = await listArtifacts()
+      const { artifacts, generations } = await listArtifacts()
       await rm(artifacts[0]!.path)
-      return artifacts
+      return { artifacts, generations }
     })
 
     await expect(ctx.sessionPersistence.list()).resolves.toEqual([])
@@ -2049,12 +2055,15 @@ describe('JsonlSessionPersistence: durability and crash semantics', () => {
 
   it('surfaces non-ENOENT stat failures during listing', async () => {
     const persistence = ctx.sessionPersistence as unknown as {
-      listArtifacts(): Promise<Array<{ header: SessionHeader; path: string }>>
+      listArtifacts(): Promise<DiscoveredArtifacts>
     }
-    const discovery = vi.spyOn(persistence, 'listArtifacts').mockResolvedValue([{
-      header: meta('snapshot-stat-failure'),
-      path: `${root}\0snapshot-stat-failure`,
-    }])
+    const discovery = vi.spyOn(persistence, 'listArtifacts').mockResolvedValue({
+      artifacts: [{
+        header: meta('snapshot-stat-failure'),
+        path: `${root}\0snapshot-stat-failure`,
+      }],
+      generations: [],
+    })
 
     await expect(ctx.sessionPersistence.list()).rejects.toThrow(/null bytes/)
     discovery.mockRestore()
@@ -2062,7 +2071,7 @@ describe('JsonlSessionPersistence: durability and crash semantics', () => {
 
   it('forwards list cancellation and awaits in-flight discovery cleanup', async () => {
     const persistence = ctx.sessionPersistence as unknown as {
-      listArtifacts(signal?: AbortSignal): Promise<Array<{ header: SessionHeader; path: string }>>
+      listArtifacts(signal?: AbortSignal): Promise<DiscoveredArtifacts>
     }
     const started = Promise.withResolvers<AbortSignal>()
     const cleanup = Promise.withResolvers<undefined>()
@@ -2070,7 +2079,7 @@ describe('JsonlSessionPersistence: durability and crash semantics', () => {
       if (signal === undefined) throw new Error('expected list signal')
       started.resolve(signal)
       await cleanup.promise
-      return []
+      return { artifacts: [], generations: [] }
     })
     const reason = new Error('JSONL list discovery cancelled')
     const controller = new AbortController()
@@ -2094,12 +2103,15 @@ describe('JsonlSessionPersistence: durability and crash semantics', () => {
     const m = meta('snapshot-stat-cancellation')
     await writeLog(ctx.sessionPersistence, m, oneTurnLog())
     const persistence = ctx.sessionPersistence as unknown as {
-      listArtifacts(signal?: AbortSignal): Promise<Array<{ header: SessionHeader; path: string }>>
+      listArtifacts(signal?: AbortSignal): Promise<DiscoveredArtifacts>
     }
-    const discovery = vi.spyOn(persistence, 'listArtifacts').mockResolvedValue([{
-      header: m,
-      path: rawLogPath(root, m.cwd, m.id),
-    }])
+    const discovery = vi.spyOn(persistence, 'listArtifacts').mockResolvedValue({
+      artifacts: [{
+        header: m,
+        path: rawLogPath(root, m.cwd, m.id),
+      }],
+      generations: [],
+    })
     const reason = new Error('JSONL list stat cancelled')
     const controller = new AbortController()
     const pending = ctx.sessionPersistence.list({ signal: controller.signal })
