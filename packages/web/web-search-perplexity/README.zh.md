@@ -44,7 +44,7 @@ kind: "package-reference"
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
-| `apiKey` | `$PERPLEXITY_API_KEY` | Perplexity API 密钥；为空或缺失时提供方不可用 |
+| `apiKey` | `$PERPLEXITY_API_KEY` | Perplexity API 密钥；为空或缺失时提供方不可用。字面量密钥是秘密角色：它会在设置中被脱敏，抵达客户端时只保留存在性标记（[设置脱敏](../../settings/settings/README.zh.md#understand-the-implementation)） |
 | `baseURL` | `https://api.perplexity.ai` | 端点基址；追加 `/chat/completions`。无法解析时提供方不可用 |
 | `model` | `sonar` | 搜索模型名称 |
 | `maxTokens` | `1024` | 生成答案 token 上限（`max_tokens`）；必须是正整数 |

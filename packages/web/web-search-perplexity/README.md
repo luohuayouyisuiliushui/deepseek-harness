@@ -44,7 +44,7 @@ Load the web service and the provider; the API key falls back to `$PERPLEXITY_AP
 
 | Field | Default | Meaning |
 |---|---|---|
-| `apiKey` | `$PERPLEXITY_API_KEY` | Perplexity API key; empty or absent makes the provider unavailable |
+| `apiKey` | `$PERPLEXITY_API_KEY` | Perplexity API key; empty or absent makes the provider unavailable. A literal key is a secret role: it is redacted from the settings surface and reaches a client only as a presence marker ([settings redaction](../../settings/settings/README.md#understand-the-implementation)) |
 | `baseURL` | `https://api.perplexity.ai` | Endpoint base; `/chat/completions` is appended. An unparseable value makes the provider unavailable |
 | `model` | `sonar` | Search model name |
 | `maxTokens` | `1024` | Upper bound on generated answer tokens (`max_tokens`); must be a positive integer |

@@ -44,7 +44,7 @@ kind: "package-reference"
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
-| `apiKey` | `$EXA_API_KEY` | Exa API 密钥；为空或缺失时提供方不可用 |
+| `apiKey` | `$EXA_API_KEY` | Exa API 密钥；为空或缺失时提供方不可用。字面量密钥是秘密角色：它会在设置中被脱敏，抵达客户端时只保留存在性标记（[设置脱敏](../../settings/settings/README.zh.md#understand-the-implementation)） |
 | `baseURL` | `https://api.exa.ai` | 端点基址；追加 `/search`。无法解析时提供方不可用 |
 | `searchType` | `auto` | 以 Exa `type` 发送的检索模式：`auto`、`keyword` 或 `neural` |
 | `numResults` | （未设置） | 请求不含 `maxResults` 时使用的默认结果数；必须是正整数 |

@@ -44,7 +44,7 @@ Load the web service and the provider; the API key falls back to `$EXA_API_KEY` 
 
 | Field | Default | Meaning |
 |---|---|---|
-| `apiKey` | `$EXA_API_KEY` | Exa API key; empty or absent makes the provider unavailable |
+| `apiKey` | `$EXA_API_KEY` | Exa API key; empty or absent makes the provider unavailable. A literal key is a secret role: it is redacted from the settings surface and reaches a client only as a presence marker ([settings redaction](../../settings/settings/README.md#understand-the-implementation)) |
 | `baseURL` | `https://api.exa.ai` | Endpoint base; `/search` is appended. An unparseable value makes the provider unavailable |
 | `searchType` | `auto` | Retrieval mode sent as Exa's `type`: `auto`, `keyword`, or `neural` |
 | `numResults` | (unset) | Default result count when a request carries no `maxResults`; must be a positive integer |
