@@ -13,6 +13,12 @@ const organizationUrl = new RegExp(`\\bgithub\\.com/${organization}(?![a-z0-9-])
 const kitRepositoryUrl = new RegExp(`\\bgithub\\.com/${organization}/libreoffice-kit(?:\\.git)?(?=/|[^a-zA-Z0-9_.-]|$)`, 'g')
 const commitCandidate = /(?<![a-z0-9])[\da-f]{7,40}(?![a-z0-9])/gi
 const excludedPrefixes = ['vendor/', '.agents/notes/archived/']
+/**
+ * Generated lockfiles carry package sizes and digests. A size is a decimal
+ * number that can name a commit object, and a lockfile records no reference a
+ * reader would follow, so these files carry no commit reference to reject.
+ */
+const generatedLockfile = /(?:^|\/)(?:pnpm-lock\.yaml|package-lock\.json|yarn\.lock|uv\.lock|poetry\.lock|Cargo\.lock)$/
 const gitOutputLimit = 64 * 1024 * 1024
 // One 41-byte line per object; 1.2 million objects produce about 49 MiB.
 const objectListingLimit = 1024 * 1024 * 1024
@@ -28,7 +34,7 @@ export interface RepositoryReference {
 }
 
 function isMaintained(file: string): boolean {
-  return !excludedPrefixes.some(prefix => file.startsWith(prefix))
+  return !excludedPrefixes.some(prefix => file.startsWith(prefix)) && !generatedLockfile.test(file)
 }
 
 /**

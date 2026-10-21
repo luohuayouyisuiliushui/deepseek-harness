@@ -140,6 +140,15 @@ describe('maintained repository reference policy', () => {
     expect(scanRepositoryReferences(fixture.root)).toEqual([])
   })
 
+  it('accepts a generated lockfile whose numeric field names an available commit', (test) => {
+    const fixture = repository(test)
+    fixture.write('python/sdk/uv.lock', `size = ${fixture.commit.slice(0, 7)}\n`)
+    fixture.write('docs.md', fixture.commit.slice(0, 7))
+    expect(scanRepositoryReferences(fixture.root)).toEqual([
+      { file: 'docs.md', line: 1, kind: 'commit-hash' },
+    ])
+  })
+
   it('accepts a prefix that two available commits share and rejects a longer unique prefix', (test) => {
     const fixture = repository(test)
     const [first, second] = collidingCommitBodies(fixture.tree, 7).map(body =>
