@@ -46,7 +46,7 @@ export interface Config {
 }
 
 export const Config: z<Config> = z.object({
-  apiKey: z.string(),
+  apiKey: z.string().role('secret'),
   baseURL: z.string(),
   searchType: z.union(['auto', 'keyword', 'neural'] as const),
   numResults: z.number().step(1).min(1),

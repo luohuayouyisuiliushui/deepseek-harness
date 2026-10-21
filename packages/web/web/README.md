@@ -79,7 +79,7 @@ A provider's availability is a cheap local check — for example whether its API
 
 ### Failures and recovery
 
-Failures throw `WebError` with a stable, machine-routable code; the message adds detail such as the missing provider id or the ambiguous candidate set. Callers route on the code and decide how to degrade. To change which backend a call uses, reconfigure the pinned id, mount or unmount providers, or fix the provider's configuration so its availability check passes.
+Failures throw `WebError` with a stable, machine-routable code; the message adds detail such as the missing provider id or the ambiguous candidate set. A credentialed provider rejects every redirect response before contacting the `Location` target and reports it as `WEB_PROVIDER_ERROR`; the fetch backend owns the `WEB_REDIRECT_BLOCKED` code and follows same-origin hops. Callers route on the code and decide how to degrade. To change which backend a call uses, reconfigure the pinned id, mount or unmount providers, or fix the provider's configuration so its availability check passes.
 
 -----
 

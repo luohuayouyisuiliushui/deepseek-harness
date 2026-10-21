@@ -41,7 +41,7 @@ export interface Config {
 }
 
 export const Config: z<Config> = z.object({
-  apiKey: z.string(),
+  apiKey: z.string().role('secret'),
   baseURL: z.string(),
   model: z.string(),
   maxTokens: z.number().step(1).min(1),
