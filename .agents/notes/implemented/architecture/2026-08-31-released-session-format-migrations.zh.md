@@ -137,7 +137,7 @@ POSIX publication 使用 hard-link creation 加目录 sync；Windows 使用 no-o
 
 原始父子迁移测试保留 24 个历史创建时间冲突作为拒绝证据。独立的内存对照只对齐子创建时间，证明恢复保留事件，包括已发布但没有 descriptor 的子 Session。Headless/ACP 与 SDK 快照适配器在规范化之前校验实时父子时钟，并在刷新时保持两者相等；已提交的前代文件保持不变。
 
-历史格式的公开修订号组合父日志物理修订号与每个所选规范路径及其文件系统修订号的指纹。仅父日志令牌无法标识子日志提供的目录变化；全库指纹让 `stat`/`list` 保持只读元数据，也纳入不可读或不支持的成员，无需新增持久化索引。无关变化也会使历史缓存失效，获取令牌需要扫描根目录。当前格式令牌仍只取决于自身文件。准备缓存保留父日志物理修订号，并独立校验子成员集合与修订。
+历史格式的公开修订号组合父日志物理修订号与每个所选规范路径及其文件系统修订号的指纹。仅父日志令牌无法标识子日志提供的目录变化；全库指纹让 `stat`/`list` 保持只读元数据，也纳入不可读或不支持的成员，无需新增持久化索引。无关变化也会使历史缓存失效，获取令牌需要扫描根目录。`list()` 调用只解析一次根目录选中的 generation，并把这份解析结果以及它已收集的文件 identity 交给全库指纹；`stat()` 调用则自行解析根目录并单独计算全库指纹。当前格式令牌仍只取决于自身文件。准备缓存保留父日志物理修订号，并独立校验子成员集合与修订。
 
 通用格式接口只传递正在恢复的 artifact。每个父 Session 的 catalog 组装将 V3→V4 声明替换为捕获已收集子 Session 证据的闭包，并复用生成的 codec、迁移与校验清单。每次父 Session 准备只编译一条短迁移链，每次恢复拥有独立的 stage 状态。在组装处绑定证据，使通用恢复选项和 stage 输入不必携带子 Session 证据，同时保留存储对发现与来源重验的所有权。静态 header 和原生当前格式读取不需要子 Session 证据；未绑定的历史正文恢复会拒绝，不会假定子 Session 集合为空。
 
@@ -145,6 +145,8 @@ POSIX publication 使用 hard-link creation 加目录 sync；Windows 使用 no-o
 ### 目录扫描测量
 
 包内[诊断脚本](../../../../packages/session/session-persistence-jsonl/tests/catalog-migration.perf.ts)测量一个原始 V3 父日志、四个各有 1,000 条事件的直属子日志，以及 0/100/1,000 个只有 header 的无关 V3 Session。每个样本在新进程中创建独立临时日志库与 Cordis 上下文，按 stat → 冷读 → 缓存读取 → 写入发布 → 当前格式热读顺序执行，最后释放上下文并删除文件。脚本在普通 Node 下使用已构建的工作区导出；创建夹具不计入测量区间。这些结果是夹具创建后的文件系统缓存热态观察，不代表磁盘冷读延迟，也不是性能门禁。
+
+包内[列举诊断脚本](../../../../packages/session/session-persistence-jsonl/tests/session-list.perf.ts)测量读者自己日志库上的持久化 Session 列举：真实的 `ctx.sessionPersistence.list()` 调用、旧算法额外增加的一次根目录遍历与一次 stat 过程，以及由此得到的操作计数。它读取该日志库，默认使用 Harness home 下的 `sessions` 目录，且不设阈值。在仓库根目录执行：`pnpm exec tsx packages/session/session-persistence-jsonl/tests/session-list.perf.ts [corpus-root]`。
 
 以下为 macOS arm64、Node v26.0.0 下各规模的全部三个样本，单位为毫秒。只读打开不发布后继：即使解码结果已缓存，成员扫描仍与日志库规模成正比。1,000 个无关日志时，中位数分别为 stat 84.14 ms、冷读 237.97 ms、缓存读取 110.98 ms、发布 268.46 ms，以及同进程当前格式读取 0.41 ms。这些测量记录成本，不证明性能提升，也不设跨主机阈值。
 

@@ -102,6 +102,17 @@ describe.each(['none', 'zstd'] as const)('historical catalog publication (%s)', 
     expect(await revision()).not.toBe(added)
   })
 
+  it('resolves the corpus generations once per listing', async () => {
+    const f = await fixture()
+    const generations = vi.spyOn(Object.getPrototypeOf(f.ctx.sessionPersistence), 'listGenerations')
+
+    await f.ctx.sessionPersistence.list()
+
+    // The corpus fingerprint reuses the generations the listing already
+    // resolved instead of traversing the root a second time.
+    expect(generations).toHaveBeenCalledOnce()
+  })
+
   it('reports malformed native catalog data without migration terminology', async () => {
     const f = await fixture()
     await f.write(f.parent, [{ type: 'subagent/catalog', seq: 0, time: 1,
