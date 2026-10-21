@@ -140,6 +140,8 @@ interface PanelProps {
   readonly occurrence: SidebarRightInjected['occurrence']
   readonly fullscreen: boolean
   readonly autoFullscreen: boolean
+  /** Whether the frame can show the panel beside the conversation. */
+  readonly drawable: boolean
   readonly active: boolean
   readonly retainTab: RightbarSeatProps['retainTab']
   /** Receives the kit's room-rule readings for the service's `split`. */
@@ -312,6 +314,7 @@ function SidebarPanel(panel: PanelProps & { width: number; panelRef: RefObject<H
       data-sidebar-right-session={sessionId}
       data-sidebar-right-panel={fullscreen ? 'fullscreen' : 'push'}
       data-sidebar-right-open={expanded || undefined}
+      data-sidebar-right-drawable={panel.drawable || undefined}
       // Dockkit hides individual docked hosts; floating descendants remain accessible.
       aria-hidden={(!expanded && surface.layout.floats.length === 0) || undefined}
     >
@@ -364,15 +367,17 @@ export function RightbarSeat({
   const reportRoom = useCallback((fits: ReadonlyMap<PaneId, HalvesFit>): void => {
     measureRoom(paneId => fits.get(paneId)?.row !== false)
   }, [measureRoom])
-  const track = shown && !autoFullscreen
+  // The frame reports the width it can offer and whether it can show the
+  // column at all. A frame that cannot fit the column keeps the panel's state
+  // but draws nothing: it has no track to sit in, and drawing it would cover
+  // the conversation it belongs to. The frame takes the track back when it
+  // widens.
+  const track = shown && !autoFullscreen && canShow
+  const drawable = canShow || fullscreen
 
   useEffect(() => {
     if (active && surface === undefined) actions.open(sessionId)
   }, [actions, sessionId, surface, active])
-
-  useLayoutEffect(() => {
-    if (shown && !fullscreen && !canShow) actions.setExpanded(sessionId, false)
-  }, [actions, sessionId, shown, fullscreen, canShow])
 
   // Read only when the fullscreen command runs, after this commit has settled.
   useLayoutEffect(() => { reportAutoFullscreen(autoFullscreen) }, [reportAutoFullscreen, autoFullscreen])
@@ -417,7 +422,7 @@ export function RightbarSeat({
   if (surface === undefined) return null
   const panel: PanelProps = {
     sessionId, actions, t, renderSlot, surface, openTab, closeTab, useTabTypes, useTabNavigation, useStore, occurrence,
-    fullscreen, autoFullscreen, reportRoom, active, retainTab, shortcuts, splitPane, toggleFullscreen,
+    fullscreen, autoFullscreen, drawable, reportRoom, active, retainTab, shortcuts, splitPane, toggleFullscreen,
   }
   return <SidebarPanel {...panel} width={width} panelRef={panelRef} />
 }

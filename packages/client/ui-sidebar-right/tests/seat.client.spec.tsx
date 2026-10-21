@@ -635,18 +635,18 @@ describe('RightbarSeat presentation', () => {
     expect(h.instance.getSnapshot()).toBe(stored)
   })
 
-  it('collapses a normal panel that cannot fit without clearing records or reopening on growth', async () => {
+  it('keeps an expanded panel open when the frame is too narrow, hiding only the track', async () => {
     const h = await mountSeat()
     const tab = h.open()
     const signal = h.bodies.get(tab.id)!.tab.signal
     h.view.update({ width: 420, viewportWidth: 900, canShow: false })
-    expect(h.layout().expanded).toBe(false)
+    expect(h.layout().expanded).toBe(true)
     expect(h.layout().tabs[tab.id]).toBeDefined()
     expect(signal.aborted).toBe(false)
-    const stored = h.instance.getSnapshot()
+    // Widening back brings the panel back without any user action.
     h.view.update({ width: 420, viewportWidth: 1440, canShow: true })
-    expect(h.instance.getSnapshot()).toBe(stored)
-    expect(h.layout().expanded).toBe(false)
+    expect(h.layout().expanded).toBe(true)
+    expect(h.layout().mode).toBe('push')
   })
 })
 

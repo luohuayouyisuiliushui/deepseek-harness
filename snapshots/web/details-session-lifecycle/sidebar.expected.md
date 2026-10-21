@@ -312,7 +312,7 @@
 }
 ```
 
-## A capacity-closed: wide left preference protected
+## A capacity-squeezed: wide left preference protected
 
 ```json
 {
@@ -326,7 +326,7 @@
     0
   ],
   "columnTransition": "all",
-  "expanded": false,
+  "expanded": true,
   "mode": "push",
   "panelContentWidth": 0,
   "panelOuterWidth": 0,
@@ -360,7 +360,7 @@
 }
 ```
 
-## A widened: remains closed
+## A widened: track restored
 
 ```json
 {
@@ -370,16 +370,16 @@
   ],
   "columns": [
     420,
-    1260,
-    0
+    504,
+    756
   ],
   "columnTransition": "all",
-  "expanded": false,
+  "expanded": true,
   "mode": "push",
-  "panelContentWidth": 0,
-  "panelOuterWidth": 0,
+  "panelContentWidth": 756,
+  "panelOuterWidth": 756,
   "coversViewport": false,
-  "resizeHandleWidth": 0,
+  "resizeHandleWidth": 8,
   "expandedDirectories": [],
   "panes": [
     {

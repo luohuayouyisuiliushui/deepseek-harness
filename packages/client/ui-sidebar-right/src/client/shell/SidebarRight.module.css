@@ -59,9 +59,12 @@
     visibility 0s linear var(--ds-transition-duration-slow);
 }
 
-.panel[data-sidebar-right-open] :global([data-dockkit-host='dock']),
-.panel[data-sidebar-right-open] :global([data-dockkit-empty]),
-.panel[data-sidebar-right-open] :global([data-dockkit-divider]) {
+/* A panel the frame cannot show beside the conversation keeps its state but is
+   not drawn: it has no track to sit in, and drawing it would cover the
+   conversation it belongs to. */
+.panel[data-sidebar-right-open][data-sidebar-right-drawable] :global([data-dockkit-host='dock']),
+.panel[data-sidebar-right-open][data-sidebar-right-drawable] :global([data-dockkit-empty]),
+.panel[data-sidebar-right-open][data-sidebar-right-drawable] :global([data-dockkit-divider]) {
   transform: none;
   visibility: visible;
   transition: transform var(--ds-transition-duration-slow) var(--ds-ease-in-out);
